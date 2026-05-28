@@ -1,0 +1,27 @@
+# Secrets - never commit these 
+.env
+*.json          # OAuth token files
+credentials.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Vector DB local storage
+chroma_db/
+*.db
+
+# IDE
+.vscode/
+.idea/
+
+venv/
+__pycache__/
+.env
+token.json
+chroma_db/
+*.pyc
