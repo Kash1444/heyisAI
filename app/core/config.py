@@ -16,6 +16,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore"
     )
 
     # ── App ────────────────────────────────────────────────
@@ -30,6 +31,11 @@ class Settings(BaseSettings):
     gmail_redirect_uri: str = Field(
         default="http://localhost:8000/auth/callback"
     )
+
+    # added these two fields to the Settings class 31/5/2026
+    # HuggingFace
+    transformers_offline: str = Field(default="1")
+    hf_datasets_offline: str = Field(default="1")
 
     # ── Gemini ─────────────────────────────────────────────
     gemini_api_key: str = Field(...)

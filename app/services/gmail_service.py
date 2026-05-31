@@ -28,17 +28,19 @@ class GmailService:
     - Embeddings (that's EmbeddingService)
     - AI generation (that's ChatService)
     """
+    """Handles all Gmail API interactions."""
+
+    def __init__(self):
+        self._client = None
+        self._client_token = None
 
     def _get_gmail_client(self):
         """
-        Build and return an authenticated Gmail API client.
+        Return authenticated Gmail client.
 
-        We rebuild this on each call rather than storing it
-        as an instance variable. Why? Because credentials
-        can expire and get refreshed between calls.
-        Always fetching fresh credentials ensures we never
-        use an expired token.
+        Rebuild only when token changes.
         """
+
         credentials = gmail_auth_service.get_valid_credentials()
 
         if not credentials:
@@ -47,10 +49,25 @@ class GmailService:
                 "User must authenticate at /auth/login"
             )
 
-        # 'build' creates the Gmail API client
-        # 'gmail' = which Google API
-        # 'v1'    = which version of that API
-        return build("gmail", "v1", credentials=credentials)
+        current_token = credentials.token
+
+        if (
+            self._client is None
+            or self._client_token != current_token
+        ):
+            self._client = build(
+                "gmail",
+                "v1",
+                credentials=credentials
+            )
+
+            self._client_token = current_token
+
+            logger.debug(
+                "Gmail client rebuilt with fresh credentials"
+            )
+
+        return self._client
 
     # ── Fetching Emails ────────────────────────────────────────────────────
 

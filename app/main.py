@@ -1,5 +1,10 @@
 # app/main.py
 
+import os
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["HF_DATASETS_OFFLINE"] = "1"
+os.environ["ANONYMIZED_TELEMETRY"] = "false"
+
 from app.api import auth
 from contextlib import asynccontextmanager
 import logging
@@ -23,6 +28,8 @@ logger = logging.getLogger(__name__)
 # This is the modern FastAPI way to handle startup + shutdown.
 # Everything BEFORE yield runs on startup.
 # Everything AFTER yield runs on shutdown.
+# app/main.py — update your lifespan function
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ── STARTUP ──
@@ -30,15 +37,25 @@ async def lifespan(app: FastAPI):
     logger.info(f"Environment : {settings.app_env}")
     logger.info(f"Debug mode  : {settings.debug}")
 
-    # We will initialize DB, ChromaDB, embedding model here later.
-    # For now just confirm startup works.
+    # Warm up the embedding model at startup
+    # This ensures the first user request is fast
+    logger.info("Warming up embedding model...")
+    from app.services.embedding_service import embedding_service
+    embedding_service._get_model()  # triggers lazy load now, not on first request
+    logger.info("Embedding model ready.")
+
+    # Warm up ChromaDB connection
+    logger.info("Connecting to ChromaDB...")
+    from app.db.vector_store import vector_store
+    stats = vector_store.get_collection_stats()
+    logger.info(f"ChromaDB ready — {stats['total_chunks']} chunks indexed.")
+
     logger.info("All systems ready. Accepting requests.")
 
-    yield  # ← Application runs here, serving requests
+    yield
 
     # ── SHUTDOWN ──
     logger.info("Shutting down... cleaning up resources.")
-    # We will close DB connections here later.
 
 
 # ── App Factory ────────────────────────────────────────────────────────────
@@ -52,6 +69,21 @@ def create_app() -> FastAPI:
         debug=settings.debug,
         lifespan=lifespan,
     )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"] if settings.debug else ["https://yourdomain.com"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # ── Routers ────────────────────────────────────────────────────────────
+    from app.api import auth, chat
+    app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+    app.include_router(chat.router, prefix="/chat", tags=["Chat"])
+
+    return app
 
     # ── CORS Middleware ────────────────────────────────────────────────────
     # CORS = Cross-Origin Resource Sharing.

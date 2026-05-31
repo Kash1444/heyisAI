@@ -53,34 +53,38 @@ class GmailAuthService:
             }
         }
 
-    def get_authorization_url(self) -> tuple[str, str]:
+    def get_valid_credentials(self):
         """
-        Step 1 of OAuth: Generate the Google login URL.
-
-        Returns:
-            - authorization_url: where to redirect the user
-            - state: a random string to prevent CSRF attacks
-
-        What is CSRF?
-        An attacker tricks your browser into making a request
-        your app didn't initiate. The 'state' parameter ensures
-        the callback you receive actually came from your login flow.
+        Returns valid credentials, refreshing if expired.
+        Saves refreshed token immediately so next call is fast.
         """
-        flow = Flow.from_client_config(
-            self.client_config,
-            scopes=GMAIL_SCOPES,
-            redirect_uri=settings.gmail_redirect_uri,
-        )
+        if not TOKEN_FILE.exists():
+            logger.warning("No token file found. User must authenticate.")
+            return None
 
-        authorization_url, state = flow.authorization_url(
-            access_type="offline",   # This gets us a refresh_token
-            include_granted_scopes="true",
-            # Forces Google to show consent screen, so we always get refresh_token
-            prompt="consent",
-        )
+        credentials = self._load_tokens()
 
-        logger.info("Generated OAuth authorization URL")
-        return authorization_url, state
+        if not credentials:
+            return None
+
+        if credentials.expired and credentials.refresh_token:
+            logger.info("Access token expired. Refreshing...")
+
+            try:
+                credentials.refresh(Request())
+
+                # Save refreshed token immediately
+                self._save_tokens(credentials)
+
+                logger.info(
+                    "Token refreshed and saved successfully"
+                )
+
+            except Exception as e:
+                logger.error(f"Token refresh failed: {e}")
+                return None
+
+        return credentials
 
     def exchange_code_for_tokens(self, code: str) -> Credentials:
         """

@@ -1,27 +1,56 @@
-# Secrets - never commit these 
+# ==========================
+
+# Secrets & Credentials
+
+# ==========================
+
 .env
-*.json          # OAuth token files
+token.json
 credentials.json
+*.json
+
+# ==========================
 
 # Python
-__pycache__/
+
+# ==========================
+
+**pycache**/
 *.pyc
 *.pyo
-.venv/
-venv/
+*.pyd
 *.egg-info/
 
-# Vector DB local storage
-chroma_db/
+venv/
+.venv/
+
+# ==========================
+
+# Database & Local Storage
+
+# ==========================
+
+gmail_chatbot.db
 *.db
 
-# IDE
+# ChromaDB persistent vectors
+
+chroma_db/
+
+# ==========================
+
+# IDE & Editor Files
+
+# ==========================
+
 .vscode/
 .idea/
 
-venv/
-__pycache__/
-.env
-token.json
-chroma_db/
-*.pyc
+# ==========================
+
+# OS Files
+
+# ==========================
+
+.DS_Store
+Thumbs.db
