@@ -1,5 +1,7 @@
 # app/core/config.py
 
+from typing import Optional
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
@@ -43,7 +45,7 @@ class Settings(BaseSettings):
 
     # ── Database ───────────────────────────────────────────
     database_url: str = Field(
-        default="sqlite+aiosqlite:///./gmail_chatbot.db"
+        default="sqlite:///./disqry.db"
     )
 
     # ── Vector DB ──────────────────────────────────────────
@@ -55,6 +57,11 @@ class Settings(BaseSettings):
     # ── Email Ingestion ────────────────────────────────────
     max_emails_to_fetch: int = Field(default=500)
     email_chunk_size: int = Field(default=1000)  # chars per chunk
+
+    # ── LLM Provider (Atharva's multi-provider support) ───────────────
+    llm_provider: str = Field(default="gemini")
+    openai_api_key: Optional[str] = Field(default=None)
+    huggingface_api_key: Optional[str] = Field(default=None)
 
 
 # This is the singleton pattern.

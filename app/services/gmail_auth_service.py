@@ -4,9 +4,11 @@ import json
 import logging
 from pathlib import Path
 from typing import Optional
+from unittest import result
 
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
+from google_auth_oauthlib import flow
 from google_auth_oauthlib.flow import Flow
 
 from app.core.config import settings
@@ -53,39 +55,27 @@ class GmailAuthService:
             }
         }
 
-    def get_valid_credentials(self):
+    def get_authorization_url(self):
         """
-        Returns valid credentials, refreshing if expired.
-        Saves refreshed token immediately so next call is fast.
+        Generate Google OAuth consent URL.
         """
-        if not TOKEN_FILE.exists():
-            logger.warning("No token file found. User must authenticate.")
-            return None
 
-        credentials = self._load_tokens()
+        flow = Flow.from_client_config(
+            self.client_config,
+            scopes=GMAIL_SCOPES,
+            redirect_uri=settings.gmail_redirect_uri,
+        )
 
-        if not credentials:
-            return None
+        authorization_url, state = flow.authorization_url(
+            access_type="offline",
+            include_granted_scopes="true",
+            prompt="consent",
+        )
 
-        if credentials.expired and credentials.refresh_token:
-            logger.info("Access token expired. Refreshing...")
+        logger.info("Generated Google authorization URL")
 
-            try:
-                credentials.refresh(Request())
-
-                # Save refreshed token immediately
-                self._save_tokens(credentials)
-
-                logger.info(
-                    "Token refreshed and saved successfully"
-                )
-
-            except Exception as e:
-                logger.error(f"Token refresh failed: {e}")
-                return None
-
-        return credentials
-
+        return authorization_url, state
+    
     def exchange_code_for_tokens(self, code: str) -> Credentials:
         """
         Step 2 of OAuth: Exchange the authorization code for tokens.
@@ -114,14 +104,11 @@ class GmailAuthService:
     def get_valid_credentials(self) -> Optional[Credentials]:
         """
         Returns valid credentials, refreshing if expired.
-
-        This is what every other service calls when they need
-        to make a Gmail API request. They don't manage tokens
-        themselves — they ask this service for valid credentials.
-
-        This is the Single Responsibility Principle:
-        only this service knows about tokens and auth.
+        Saves refreshed token immediately so future requests are fast.
         """
+
+        logger.info("Loading Gmail credentials...")
+
         if not TOKEN_FILE.exists():
             logger.warning("No token file found. User must authenticate.")
             return None
@@ -129,22 +116,65 @@ class GmailAuthService:
         credentials = self._load_tokens()
 
         if not credentials:
+            logger.error("Failed to load credentials from token file")
             return None
 
-        # If token is expired but we have a refresh token,
-        # refresh it automatically. User stays logged in.
+        logger.info(
+            f"Credentials loaded | valid={credentials.valid} "
+            f"expired={credentials.expired}"
+        )
+
+        # Refresh expired access token
         if credentials.expired and credentials.refresh_token:
             logger.info("Access token expired. Refreshing...")
-            credentials.refresh(Request())
-            self._save_tokens(credentials)
-            logger.info("Token refreshed successfully")
+
+            try:
+                credentials.refresh(Request())
+
+                # Persist refreshed token
+                self._save_tokens(credentials)
+
+                logger.info(
+                    "Token refreshed and saved successfully"
+                )
+
+            except Exception as e:
+                logger.error(
+                    f"Token refresh failed: {e}",
+                    exc_info=True
+                )
+                return None
 
         return credentials
 
+
     def is_authenticated(self) -> bool:
-        """Quick check — is there a valid token available?"""
+        """
+        Quick authentication check used by /auth/status
+        """
+
+        logger.info("AUTH CHECK START")
+
         credentials = self.get_valid_credentials()
-        return credentials is not None and credentials.valid
+
+        logger.info(
+            f"Credentials object exists: {credentials is not None}"
+        )
+
+        if credentials:
+            logger.info(
+                f"valid={credentials.valid}, "
+                f"expired={credentials.expired}"
+            )
+
+        result = (
+        credentials is not None
+        and credentials.valid
+        )
+
+        logger.info(f"AUTH RESULT: {result}")
+
+        return result
 
     def revoke_and_logout(self):
         """
@@ -199,7 +229,6 @@ class GmailAuthService:
         except (json.JSONDecodeError, KeyError) as e:
             logger.error(f"Failed to load tokens: {e}")
             return None
-
 
 # Singleton — one instance shared across the app
 gmail_auth_service = GmailAuthService()
