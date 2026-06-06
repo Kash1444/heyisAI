@@ -53,6 +53,28 @@ class GmailAuthService:
             }
         }
 
+    def get_authorization_url(self):
+        """
+        Step 1 of OAuth:
+        Generate Google's authorization URL and state token.
+        """
+
+        flow = Flow.from_client_config(
+            self.client_config,
+            scopes=GMAIL_SCOPES,
+            redirect_uri=settings.gmail_redirect_uri,
+        )
+
+        authorization_url, state = flow.authorization_url(
+            access_type="offline",
+            include_granted_scopes="true",
+            prompt="consent",
+        )
+
+        logger.info("Generated Google OAuth authorization URL")
+
+        return authorization_url, state
+
     def get_valid_credentials(self):
         """
         Returns valid credentials, refreshing if expired.

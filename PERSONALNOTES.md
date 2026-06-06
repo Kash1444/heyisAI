@@ -23,3 +23,20 @@ uvicorn app.main:app --reload
 http://localhost:8000/auth/login
 http://localhost:8000/auth/callback
 http://localhost:8000/auth/status
+
+
+# DM
+
+cd C:\Users\Kash\gmail-chatbot
+venv\Scripts\activate
+uvicorn app.main:app --reload --port 8000
+
+# Swagger UI(FAST API)
+http://localhost:8000/docs
+
+# quick test
+python -m tests.test_app
+
+# Google OAuth
+http://localhost:8000/auth/login
+

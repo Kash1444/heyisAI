@@ -33,6 +33,7 @@ venv/
 gmail_chatbot.db
 *.db
 
+
 # ChromaDB persistent vectors
 
 chroma_db/
