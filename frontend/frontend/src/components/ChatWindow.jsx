@@ -54,6 +54,23 @@ export default function ChatWindow({ onLogout }) {
 
       const data = await res.json();
 
+      // ── MODEL EXHAUSTED HANDLING ─────────────────────────────
+      if (data.error_type === "model_exhausted") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: data.answer,
+            is_error: true,
+            error_type: "model_exhausted",
+            sources: [],
+            has_results: false,
+          },
+        ]);
+        return;
+      }
+
+      // ── NORMAL RESPONSE ──────────────────────────────────────
       setMessages((prev) => [
         ...prev,
         {
@@ -64,6 +81,7 @@ export default function ChatWindow({ onLogout }) {
           email_count: data.email_count,
         },
       ]);
+
     } catch (err) {
       console.error(err);
 
@@ -72,9 +90,10 @@ export default function ChatWindow({ onLogout }) {
         {
           role: "assistant",
           content:
-            "Something went wrong while searching your Gmail. Please try again.",
+            "Connection error. Make sure the backend is running.",
           sources: [],
           has_results: false,
+          is_error: true,
         },
       ]);
     } finally {
@@ -109,21 +128,10 @@ export default function ChatWindow({ onLogout }) {
           alignItems: "center",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <span style={{ fontSize: "20px" }}>✉️</span>
 
-          <span
-            style={{
-              fontWeight: "600",
-              fontSize: "16px",
-            }}
-          >
+          <span style={{ fontWeight: "600", fontSize: "16px" }}>
             Gmail AI Assistant
           </span>
         </div>
@@ -160,37 +168,14 @@ export default function ChatWindow({ onLogout }) {
         }}
       >
         {messages.length === 0 && (
-          <div
-            style={{
-              textAlign: "center",
-              marginTop: "60px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "36px",
-                marginBottom: "16px",
-              }}
-            >
-              ✉️
-            </div>
+          <div style={{ textAlign: "center", marginTop: "60px" }}>
+            <div style={{ fontSize: "36px", marginBottom: "16px" }}>✉️</div>
 
-            <h2
-              style={{
-                fontSize: "22px",
-                fontWeight: "600",
-                marginBottom: "8px",
-              }}
-            >
+            <h2 style={{ fontSize: "22px", fontWeight: "600", marginBottom: "8px" }}>
               Ask anything about your Gmail
             </h2>
 
-            <p
-              style={{
-                color: "#666",
-                marginBottom: "32px",
-              }}
-            >
+            <p style={{ color: "#666", marginBottom: "32px" }}>
               I can search your entire email history instantly
             </p>
 
@@ -297,17 +282,12 @@ export default function ChatWindow({ onLogout }) {
             onClick={() => sendMessage()}
             disabled={!input.trim() || loading}
             style={{
-              background:
-                input.trim() && !loading ? "#4285f4" : "#2a2a2a",
+              background: input.trim() && !loading ? "#4285f4" : "#2a2a2a",
               border: "none",
               borderRadius: "8px",
               padding: "8px 16px",
-              color:
-                input.trim() && !loading ? "white" : "#555",
-              cursor:
-                input.trim() && !loading
-                  ? "pointer"
-                  : "default",
+              color: input.trim() && !loading ? "white" : "#555",
+              cursor: input.trim() && !loading ? "pointer" : "default",
               fontSize: "14px",
               fontWeight: "600",
             }}

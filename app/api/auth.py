@@ -35,12 +35,11 @@ async def login():
 async def oauth_callback(code: str, state: str = ""):
     try:
         gmail_auth_service.exchange_code_for_tokens(code)
-        # Redirect to React frontend after successful auth
+        # After successful login, send user back to React app
         return RedirectResponse(url="http://localhost:3000")
     except Exception as e:
         logger.error(f"OAuth callback failed: {e}")
         raise HTTPException(status_code=400, detail=str(e))
-
 
 @router.get("/status", response_model=AuthStatus)
 async def auth_status():

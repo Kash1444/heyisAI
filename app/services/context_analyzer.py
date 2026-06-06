@@ -8,6 +8,15 @@
 # 1. Performance: memory answers are instant, Gmail search takes 3-8s
 # 2. Correctness: "summarize it" without memory = wrong answer
 
+# new import 
+from app.services.llm_service import llm_service, ModelExhaustedException
+
+# In _llm_analyze, replace:
+#   response = self.model.generate_content(prompt)
+#   text = response.text.strip()
+# With:
+#   text = llm_service.generate(prompt).strip()
+
 import logging
 import google.generativeai as genai
 from app.core.config import settings

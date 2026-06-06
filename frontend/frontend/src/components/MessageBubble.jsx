@@ -1,83 +1,88 @@
-import ReactMarkdown from "react-markdown";
+import React from "react";
 
 export default function MessageBubble({ message }) {
   const isUser = message.role === "user";
+  const isError = message.is_error;
+  const isModelExhausted = message.error_type === "model_exhausted";
 
   return (
-    <div style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: isUser ? "flex-end" : "flex-start",
-      gap: "8px",
-    }}>
-      {/* Message bubble */}
-      <div style={{
-        maxWidth: "85%",
-        padding: "12px 16px",
-        borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-        background: isUser ? "#4285f4" : "#1a1a1a",
-        color: isUser ? "white" : "#ececec",
-        fontSize: "15px",
-        lineHeight: "1.6",
-      }}>
-        {isUser ? (
-          <span>{message.content}</span>
-        ) : (
-          <ReactMarkdown>{message.content}</ReactMarkdown>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: isUser ? "flex-end" : "flex-start",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: "75%",
+          padding: "12px 14px",
+          borderRadius: "12px",
+          fontSize: "14px",
+          lineHeight: "1.5",
+          whiteSpace: "pre-wrap",
+          background: isUser
+            ? "#4285f4"
+            : isError
+            ? "rgba(255, 77, 79, 0.12)"
+            : "#1a1a1a",
+          color: isUser ? "#fff" : isError ? "#ffb3b3" : "#eaeaea",
+          border: isError ? "1px solid #ff4d4f" : "1px solid #2a2a2a",
+        }}
+      >
+        {/* MESSAGE TEXT */}
+        <div>{message.content}</div>
+
+        {/* MODEL EXHAUSTED EXTRA UI */}
+        {isModelExhausted && (
+          <div
+            style={{
+              marginTop: "10px",
+              paddingTop: "10px",
+              borderTop: "1px solid rgba(255,255,255,0.1)",
+              fontSize: "12px",
+              color: "#ff8080",
+            }}
+          >
+            ⚠️ All AI models are currently exhausted.
+
+            <div style={{ marginTop: "6px" }}>
+              <a
+                href="/model-status"
+                style={{
+                  color: "#ff8080",
+                  textDecoration: "underline",
+                }}
+              >
+                Check model status →
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* SOURCES */}
+        {message.sources && message.sources.length > 0 && (
+          <div
+            style={{
+              marginTop: "10px",
+              paddingTop: "10px",
+              borderTop: "1px solid #333",
+              fontSize: "12px",
+              color: "#aaa",
+            }}
+          >
+            <div style={{ marginBottom: "6px", fontWeight: "600" }}>
+              Sources:
+            </div>
+
+            {message.sources.slice(0, 3).map((src, i) => (
+              <div key={i} style={{ marginBottom: "6px" }}>
+                <div>{src.subject}</div>
+                <div style={{ color: "#777" }}>{src.sender}</div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
-
-      {/* Source citations */}
-      {message.sources && message.sources.length > 0 && (
-        <div style={{
-          maxWidth: "85%",
-          display: "flex",
-          flexDirection: "column",
-          gap: "6px",
-        }}>
-          <div style={{ color: "#555", fontSize: "12px", marginLeft: "4px" }}>
-            Sources ({message.email_count} emails searched)
-          </div>
-          {message.sources.map((src, i) => (
-            <div
-              key={i}
-              style={{
-                background: "#111",
-                border: "1px solid #2a2a2a",
-                borderRadius: "8px",
-                padding: "10px 12px",
-                fontSize: "13px",
-              }}
-            >
-              <div style={{
-                fontWeight: "600",
-                color: "#ccc",
-                marginBottom: "2px",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}>
-                {src.subject}
-              </div>
-              <div style={{ color: "#666", fontSize: "12px" }}>
-                {src.sender} · {src.date?.slice(0, 16)}
-              </div>
-              {src.snippet && (
-                <div style={{
-                  color: "#555",
-                  fontSize: "12px",
-                  marginTop: "4px",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}>
-                  {src.snippet}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
