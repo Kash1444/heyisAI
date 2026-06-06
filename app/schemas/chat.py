@@ -3,6 +3,36 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 
+# Add these to app/schemas/chat.py
+
+class ChatMessage(BaseModel):
+    message: str = Field(
+        ...,
+        min_length=2,
+        max_length=1000,
+        description="User's natural language question",
+    )
+    session_id: str = Field(
+        default="default",
+        description="Session ID for conversation memory",
+    )
+
+
+class SourceEmail(BaseModel):
+    """Email citation returned with answer."""
+    email_id: str
+    subject: str
+    sender: str
+    date: str
+    snippet: str
+
+
+class ChatAnswer(BaseModel):
+    """Complete response from the assistant."""
+    answer: str
+    sources: list[SourceEmail] = []
+    has_results: bool
+    email_count: int = 0
 
 class ChatRequest(BaseModel):
     """

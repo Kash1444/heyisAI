@@ -3,14 +3,14 @@
 import os
 import logging
 from contextlib import asynccontextmanager
-from app.api import auth, chat_atharva
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 
 # ------------------------------------------------------------------
-# Environment
+# Environment Variables
 # ------------------------------------------------------------------
 
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
@@ -32,9 +32,9 @@ logger = logging.getLogger(__name__)
 # Lifespan
 # ------------------------------------------------------------------
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-
     logger.info(f"Starting {settings.app_name}")
     logger.info(f"Environment: {settings.app_env}")
     logger.info(f"Debug Mode: {settings.debug}")
@@ -69,7 +69,12 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    logger.info("Application shutting down...")
+    logger.info("Shutting down...")
+
+
+# ------------------------------------------------------------------
+# FastAPI Factory
+# ------------------------------------------------------------------
 
 # ------------------------------------------------------------------
 # App Factory
@@ -101,75 +106,29 @@ def create_app() -> FastAPI:
     # Routers
     # --------------------------------------------------------------
 
-    # Authentication
-    try:
-        from app.api import auth
+    from app.api import auth
+    from app.api import chat_live
 
-        app.include_router(
-            auth.router,
-            prefix="/auth",
-            tags=["Authentication"]
-        )
+    logger.info("Loaded auth router")
+    logger.info("Loaded chat_live router")
 
-        logger.info("Loaded auth router")
+    app.include_router(
+        auth.router,
+        prefix="/auth",
+        tags=["Authentication"],
+    )
 
-    except Exception as e:
-        logger.error(f"Failed loading auth router: {e}")
-
-    # Atharva APIs
-    try:
-        from app.api import (
-            call_sync,
-            sms_sync,
-            location_sync,
-            notification_sync,
-            app_usage_sync,
-            chat_atharva,
-        )
-
-        app.include_router(
-            call_sync.router,
-            prefix="/sync/calls",
-            tags=["Sync - Calls"]
-        )
-
-        app.include_router(
-            sms_sync.router,
-            prefix="/sync/sms",
-            tags=["Sync - SMS"]
-        )
-
-        app.include_router(
-            location_sync.router,
-            prefix="/sync/location",
-            tags=["Sync - Location"]
-        )
-
-        app.include_router(
-            notification_sync.router,
-            prefix="/sync/notifications",
-            tags=["Sync - Notifications"]
-        )
-
-        app.include_router(
-            app_usage_sync.router,
-            prefix="/sync/app-usage",
-            tags=["Sync - App Usage"]
-        )
-
-        app.include_router(
-            chat_atharva.router,
-            prefix="/query",
-            tags=["Query Engine"]
-        )
-        
-
-        logger.info("Loaded Atharva routers")
-
-    except Exception as e:
-        logger.error(f"Failed loading Atharva routers: {e}")
+    app.include_router(
+        chat_live.router,
+        prefix="/chat",
+        tags=["Chat"],
+    )
 
     return app
+
+# ------------------------------------------------------------------
+# App Instance
+# ------------------------------------------------------------------
 
 # ------------------------------------------------------------------
 # App Instance
@@ -180,6 +139,11 @@ app = create_app()
 # ------------------------------------------------------------------
 # Health Check
 # ------------------------------------------------------------------
+
+# ------------------------------------------------------------------
+# Health Check
+# ------------------------------------------------------------------
+
 
 @app.get("/health", tags=["system"])
 async def health_check():
@@ -193,6 +157,11 @@ async def health_check():
 # ------------------------------------------------------------------
 # Root
 # ------------------------------------------------------------------
+
+# ------------------------------------------------------------------
+# Root
+# ------------------------------------------------------------------
+
 
 @app.get("/", tags=["system"])
 async def root():

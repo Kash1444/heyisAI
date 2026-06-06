@@ -27,6 +27,7 @@ gmail_chatbot.db
 *.db
 *.sqlite
 
+
 # ChromaDB persistent vectors
 chroma_db/
 
@@ -43,3 +44,15 @@ chroma_db/
 
 .DS_Store
 Thumbs.db
+
+# React / Node
+node_modules/
+frontend/**/node_modules/
+
+# React build outputs
+build/
+dist/
+
+# Environment files
+frontend/.env
+frontend/**/.env

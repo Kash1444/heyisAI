@@ -1,5 +1,4 @@
 # app/services/ingestion_service.py
-
 import logging
 from app.services.gmail_service import gmail_service
 from app.services.embedding_service import embedding_service
@@ -87,14 +86,36 @@ class IngestionService:
                 # We combine subject + sender + body for richer embeddings
                 # The subject and sender add crucial context to each chunk
                 email_text = self._prepare_email_text(full_email)
+                MAX_EMAIL_SIZE = 50000  # characters
+
+                if len(email_text) > MAX_EMAIL_SIZE:
+                    logger.warning(
+                        f"Skipping large email {email_meta.id} "
+                        f"({len(email_text)} chars)"
+                    )
+                    total_failed += 1
+                    continue
 
                 if not email_text.strip():
                     logger.warning(f"Empty email body for {email_meta.id}")
                     total_failed += 1
                     continue
 
+                logger.info(
+                    f"Email size: {len(email_text)} characters"
+                )
+
                 # Step 4: Chunk the text
                 chunks = embedding_service.chunk_text(email_text)
+
+                MAX_CHUNKS = 50
+
+                if len(chunks) > MAX_CHUNKS:
+                    logger.warning(
+                        f"Too many chunks ({len(chunks)}). Truncating."
+                    )
+                    chunks = chunks[:MAX_CHUNKS]
+
                 logger.debug(
                     f"Email chunked into {len(chunks)} pieces"
                 )
