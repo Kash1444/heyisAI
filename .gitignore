@@ -1,21 +1,16 @@
 # ==========================
-
 # Secrets & Credentials
-
 # ==========================
 
 .env
 token.json
 credentials.json
-*.json
 
 # ==========================
-
 # Python
-
 # ==========================
 
-**pycache**/
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
@@ -25,37 +20,30 @@ venv/
 .venv/
 
 # ==========================
-
 # Database & Local Storage
-
 # ==========================
 
 gmail_chatbot.db
 *.db
+*.sqlite
 
 
 # ChromaDB persistent vectors
-
 chroma_db/
 
 # ==========================
-
 # IDE & Editor Files
-
 # ==========================
 
 .vscode/
 .idea/
 
 # ==========================
-
 # OS Files
-
 # ==========================
 
 .DS_Store
 Thumbs.db
-
 
 # React / Node
 node_modules/

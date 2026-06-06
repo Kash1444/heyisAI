@@ -4,6 +4,7 @@ An AI-powered email assistant that retrieves and reasons over Gmail
 using semantic search, RAG, and an AI agent with tool calling.
 
 ## Architecture
+```text
 User Question
 ↓
 AI Agent (Gemini) — picks the right tool
@@ -17,6 +18,7 @@ MCP Tool Registry
 Gemini generates grounded answer
 ↓
 Response + source references
+```
 
 ## Tech Stack
 
@@ -68,20 +70,32 @@ Response + source references
 
 ## Project Structure
 
-├── api/           # FastAPI route handlers
-├── agents/        # AI agent with tool calling
-├── core/          # Config and settings
-├── db/            # Vector store (ChromaDB)
-├── mcp/           # Tool registry and definitions
-├── schemas/       # Pydantic request/response models
-└── services/      # Business logic
-├── gmail_auth_service.py   # OAuth flow
-├── gmail_service.py        # Gmail API
-├── embedding_service.py    # Text → vectors
-├── ingestion_service.py    # Email pipeline
-├── retrieval_service.py    # Semantic search
-├── rag_service.py          # RAG pipeline
-└── conversation_service.py # Session memory
+```text
+gmail-chatbot/
+│
+├── app/
+│   ├── api/
+│   ├── agents/
+│   ├── core/
+│   ├── db/
+│   ├── mcp/
+│   ├── schemas/
+│   └── services/
+│       ├── gmail_auth_service.py
+│       ├── gmail_service.py
+│       ├── embedding_service.py
+│       ├── ingestion_service.py
+│       ├── retrieval_service.py
+│       ├── rag_service.py
+│       └── conversation_service.py
+│
+├── tests/
+├── chroma_db/
+├── .env
+├── requirements.txt
+├── README.md
+└── main.py
+```
 
 ## Environment Variables
 
