@@ -1,7 +1,4 @@
 # app/api/chat_live.py
-#
-# The new primary chat endpoint.
-# Replaces Swagger UI with a clean API for the React frontend.
 
 import logging
 from fastapi import APIRouter, HTTPException
@@ -15,15 +12,16 @@ router = APIRouter()
 @router.post("", response_model=ChatAnswer)
 async def chat(request: ChatMessage):
     """
-    Main chat endpoint. Send a question, get an answer.
-
-    No ingestion needed. Works on your entire Gmail history.
-    Every answer includes source email citations.
+    Conversational Gmail AI endpoint.
+    Remembers context across turns within a session.
     """
-    logger.info(f"Chat: '{request.message}'")
+    logger.info(f"Chat | session={request.session_id} | '{request.message}'")
 
     try:
-        result = orchestrator.run(request.message)
+        result = orchestrator.run(
+            question=request.message,
+            session_id=request.session_id,
+        )
 
         sources = [
             SourceEmail(**s)
@@ -41,4 +39,4 @@ async def chat(request: ChatMessage):
         raise HTTPException(status_code=401, detail=str(e))
     except Exception as e:
         logger.error(f"Chat error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Chat service error")
+        raise HTTPException(status_code=500, detail="Chat error")

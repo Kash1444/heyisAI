@@ -134,3 +134,15 @@ gmail-chatbot/
     │       └── client.js
     ├── package.json
     └── tailwind.config.js
+
+# Running Everything Together
+
+# Terminal 1 — Backend:
+        bashcd C:\Users\Kash\gmail-chatbot
+        venv\Scripts\activate
+        uvicorn app.main:app --reload --port 8000
+
+# Terminal 2 — Frontend:
+        bashcd C:\Users\Kash\gmail-chatbot\frontend
+        npm install
+        npm start

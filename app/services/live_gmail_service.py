@@ -4,6 +4,12 @@
 # No pre-ingestion. No ChromaDB. Direct Gmail access.
 # This is the heart of the new architecture.
 
+# app/services/live_gmail_service.py
+# Add these imports at the top
+
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
 import base64
 import logging
 from typing import Optional
@@ -66,16 +72,16 @@ class LiveGmailService:
 
         logger.info(f"Total unique emails fetched: {len(all_emails)}")
         return all_emails
-
+    
     def _search_one_query(
         self,
         query: str,
         max_results: int
     ) -> list[dict]:
-        """Search Gmail with one query and fetch full content."""
+        """Search Gmail and fetch all emails concurrently."""
         service = self._get_client()
 
-        # Step 1: Get matching message IDs
+        # Step 1: Get message IDs (one API call)
         result = service.users().messages().list(
             userId="me",
             q=query,
@@ -89,14 +95,22 @@ class LiveGmailService:
 
         logger.info(f"Query '{query}' → {len(messages)} messages")
 
-        # Step 2: Fetch full content for each ID
-        emails = []
-        for msg in messages:
-            email = self._fetch_email(service, msg["id"])
-            if email:
-                emails.append(email)
+        # Step 2: Fetch all emails CONCURRENTLY
+        # ThreadPoolExecutor runs multiple fetches in parallel
+        # 5 workers = 5 simultaneous Gmail API calls
+        # 10 emails that took 8s sequentially → ~2s concurrently
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [
+                executor.submit(self._fetch_email, service, msg["id"])
+                for msg in messages
+            ]
+            emails = [
+                f.result() for f in futures
+                if f.result() is not None
+            ]
 
         return emails
+        
 
     def _fetch_email(
         self,

@@ -6,13 +6,15 @@ from typing import Optional
 # Add these to app/schemas/chat.py
 
 class ChatMessage(BaseModel):
-    """Single chat request — just a message."""
     message: str = Field(
         ...,
         min_length=2,
         max_length=1000,
         description="User's natural language question",
-        examples=["What was my last Amazon order?"]
+    )
+    session_id: str = Field(
+        default="default",
+        description="Session ID for conversation memory",
     )
 
 
