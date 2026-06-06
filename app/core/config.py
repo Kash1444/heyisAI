@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     # ── Gemini ─────────────────────────────────────────────
     gemini_api_key: str = Field(...)
     gemini_model: str = Field(default="gemini-1.5-flash")
+    
+    # ── groq ───────────────────────────────────────────────
+    groq_api_key: Optional[str] = Field(default=None)
 
     # ── Database ───────────────────────────────────────────
     database_url: str = Field(
