@@ -137,7 +137,10 @@ gmail-chatbot/
 
 # Running Everything Together
 
+# stop everything
+
 # delete stale token(if doesn't work)
+
 
 # log in if wanted to generate tokens
 http://localhost:8000/auth/login
@@ -165,3 +168,26 @@ uvicorn app.main:app --reload --port 8000
 python -c "import os; os.remove('token.json')"
 
 Then login again.
+
+
+
+
+
+# EXAMPLE QUERIES 
+
+# Common queries (getting only recent 5 for api exhaust control[enough for prototype])
+Show my unread emails
+Show emails from Amazon
+Show all emails from CLOUD QUEST
+Give me a summary of unread emails
+
+# Accurate results
+Did anyone email me about internships recently?
+when was my last order from amazon?
+When did I receive my offer letter from cloud quest?
+when was my last 5 instamart orders placed on ?
+
+# Edge cases
+asdisalkncldkvn
+can you generate me a simple python code that checks for palindrome?
+when did i order my iphore 16?

@@ -10,6 +10,8 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 
+
+
 # ------------------------------------------------------------------
 # Environment Variables
 # ------------------------------------------------------------------
@@ -26,6 +28,13 @@ logging.basicConfig(
     level=logging.INFO if not settings.debug else logging.DEBUG,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
+
+# Silence noisy third-party libraries
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("googleapiclient").setLevel(logging.WARNING)
+logging.getLogger("google.auth").setLevel(logging.WARNING)
+
 
 logger = logging.getLogger(__name__)
 
@@ -93,12 +102,15 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"] if settings.debug else ["https://yourdomain.com"],
+        allow_origins=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://192.168.1.8:3000",
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
     # --------------------------------------------------------------
     # Global Exception Handler
     # --------------------------------------------------------------

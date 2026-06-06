@@ -105,7 +105,16 @@ class LLMService:
     # PROVIDER CHAIN
     # =========================
     def _get_provider_chain(self) -> list[dict]:
-        providers = [
+        providers = []
+
+        # DEMO PRIORITY
+        if settings.groq_api_key:
+            providers.append({
+                "name": "groq-llama3",
+                "call": lambda p: self._call_groq(p),
+            })
+
+        providers.extend([
             {
                 "name": "gemini-1.5-flash",
                 "call": lambda p: self._call_gemini("gemini-1.5-flash", p),
@@ -118,14 +127,8 @@ class LLMService:
                 "name": "gemini-2.0-flash",
                 "call": lambda p: self._call_gemini("gemini-2.0-flash", p),
             },
-        ]
+        ])
 
-        if settings.groq_api_key:
-            providers.append({
-                "name": "groq-llama3",
-                "call": lambda p: self._call_groq(p),
-            })
-        
         if settings.openrouter_api_key:
             providers.append({
                 "name": "openrouter-llama3",
