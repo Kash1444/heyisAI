@@ -32,31 +32,14 @@ async def login():
 
 
 @router.get("/callback")
-async def oauth_callback(code: str, state: str):
-    """
-    Step 2: Google redirects back here with an authorization code.
-
-    After user approves permissions, Google redirects to this URL
-    with a 'code' parameter. We exchange that code for tokens.
-    """
+async def oauth_callback(code: str, state: str = ""):
     try:
-        credentials = gmail_auth_service.exchange_code_for_tokens(code)
-        logger.info("OAuth callback successful. Tokens stored.")
-
-        # In a real app, redirect to your frontend dashboard.
-        # For now, return a success message.
-        return {
-            "message": "Authentication successful!",
-            "authenticated": True,
-            "note": "Tokens stored. You can now use the Gmail API."
-        }
-
+        gmail_auth_service.exchange_code_for_tokens(code)
+        # Redirect to React frontend after successful auth
+        return RedirectResponse(url="http://localhost:3000")
     except Exception as e:
         logger.error(f"OAuth callback failed: {e}")
-        raise HTTPException(
-            status_code=400,
-            detail=f"Authentication failed: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/status", response_model=AuthStatus)
