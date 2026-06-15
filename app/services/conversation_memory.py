@@ -92,31 +92,31 @@ class ConversationMemoryService:
         return history[-1].retrieved_emails
 
     def get_context_string(self, session_id: str) -> str:
-        """
-        Build a conversation history string for the LLM prompt.
-
-        The LLM needs to see previous turns to understand
-        references like "it", "that email", "the order".
-        We pass the last 3 turns — enough context without
-        bloating the prompt.
-        """
         history = self.get_history(session_id)
         if not history:
             return ""
 
-        # Last 3 turns is sufficient for most follow-ups
         recent = history[-3:]
         lines = []
 
         for turn in recent:
             lines.append(f"User: {turn.user_message}")
-            # Truncate long responses to save prompt space
             response_preview = turn.assistant_response[:300]
             if len(turn.assistant_response) > 300:
                 response_preview += "..."
             lines.append(f"Assistant: {response_preview}")
 
+            # Add email context so follow-ups know what was found
+            if turn.retrieved_emails:
+                email_refs = [
+                    f"  - '{e.get('subject', 'no subject')}' from {e.get('sender', 'unknown')}"
+                    for e in turn.retrieved_emails[:3]
+                ]
+                lines.append(f"[Emails found in this turn: {len(turn.retrieved_emails)} emails]")
+                lines.extend(email_refs)
+
         return "\n".join(lines)
+
 
     def clear_session(self, session_id: str):
         """Clear history — user starts a fresh conversation."""

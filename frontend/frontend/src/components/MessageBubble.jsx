@@ -20,13 +20,22 @@ export default function MessageBubble({ message }) {
           fontSize: "14px",
           lineHeight: "1.5",
           whiteSpace: "pre-wrap",
+
+          // Fix long URLs / long strings overflowing
+          wordBreak: "break-word",
+          overflowWrap: "anywhere",
+
           background: isUser
             ? "#4285f4"
             : isError
             ? "rgba(255, 77, 79, 0.12)"
             : "#1a1a1a",
+
           color: isUser ? "#fff" : isError ? "#ffb3b3" : "#eaeaea",
-          border: isError ? "1px solid #ff4d4f" : "1px solid #2a2a2a",
+
+          border: isError
+            ? "1px solid #ff4d4f"
+            : "1px solid #2a2a2a",
         }}
       >
         {/* MESSAGE TEXT */}
@@ -70,14 +79,33 @@ export default function MessageBubble({ message }) {
               color: "#aaa",
             }}
           >
-            <div style={{ marginBottom: "6px", fontWeight: "600" }}>
+            <div
+              style={{
+                marginBottom: "6px",
+                fontWeight: "600",
+              }}
+            >
               Sources:
             </div>
 
             {message.sources.slice(0, 3).map((src, i) => (
-              <div key={i} style={{ marginBottom: "6px" }}>
+              <div
+                key={i}
+                style={{
+                  marginBottom: "6px",
+                }}
+              >
                 <div>{src.subject}</div>
-                <div style={{ color: "#777" }}>{src.sender}</div>
+
+                <div
+                  style={{
+                    color: "#777",
+                    wordBreak: "break-word",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {src.sender}
+                </div>
               </div>
             ))}
           </div>

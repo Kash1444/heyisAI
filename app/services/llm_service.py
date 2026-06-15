@@ -125,8 +125,35 @@ class LLMService:
                 "name": "groq-llama3",
                 "call": lambda p: self._call_groq(p),
             })
+        
+        if settings.openrouter_api_key:
+            providers.append({
+                "name": "openrouter-llama3",
+                "call": lambda p: self._call_openrouter(p),
+            })
 
         return providers
+    
+    # =========================
+    # OPENROUTER CALL
+    # =========================
+
+    def _call_openrouter(self, prompt: str) -> str:
+        import httpx
+        response = httpx.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.openrouter_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "meta-llama/llama-3.1-8b-instruct:free",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 1024,
+            },
+            timeout=30.0,
+        )
+        return response.json()["choices"][0]["message"]["content"]
 
     # =========================
     # GEMINI CALL

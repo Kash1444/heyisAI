@@ -6,15 +6,17 @@ export default function App() {
   const [authenticated, setAuthenticated] = useState(null);
 
   useEffect(() => {
-    // Check auth status on load
-    fetch("/auth/status")
+    fetch("http://localhost:8000/auth/status")
       .then(r => r.json())
-      .then(data => setAuthenticated(data.authenticated))
+      .then(data => {
+        setAuthenticated(data.authenticated);
+      })
       .catch(() => setAuthenticated(false));
   }, []);
 
   // Still checking
   if (authenticated === null) {
+  
     return (
       <div style={{
         display: "flex", alignItems: "center",

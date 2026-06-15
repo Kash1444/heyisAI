@@ -137,6 +137,11 @@ gmail-chatbot/
 
 # Running Everything Together
 
+# delete stale token(if doesn't work)
+
+# log in if wanted to generate tokens
+http://localhost:8000/auth/login
+
 # Terminal 1 — Backend:
 cd C:\Users\Kash\gmail-chatbot
 venv\Scripts\activate
@@ -146,3 +151,17 @@ uvicorn app.main:app --reload --port 8000
 cd C:\Users\Kash\gmail-chatbot\frontend\frontend
 npm install
 npm start
+
+
+# PLAN B (If Something Breaks During Demo)
+
+# LLM exhausted:
+python -c "from app.services.llm_service import llm_service; llm_service.reset_exhausted()"
+
+# Backend crashed:
+uvicorn app.main:app --reload --port 8000
+
+# Login stuck:
+python -c "import os; os.remove('token.json')"
+
+Then login again.

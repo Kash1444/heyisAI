@@ -1,11 +1,4 @@
 # app/services/live_gmail_service.py
-#
-# Fetches emails LIVE from Gmail API on every query.
-# No pre-ingestion. No ChromaDB. Direct Gmail access.
-# This is the heart of the new architecture.
-
-# app/services/live_gmail_service.py
-# Add these imports at the top
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -13,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 import base64
 import logging
 from typing import Optional
+
 from googleapiclient.discovery import build
 from app.services.gmail_auth_service import gmail_auth_service
 
@@ -22,16 +16,7 @@ logger = logging.getLogger(__name__)
 class LiveGmailService:
     """
     Searches and fetches emails directly from Gmail API.
-
-    Key design decision: fetch only what we need.
-    We never download your entire inbox.
-    We search first, then fetch only the matching emails.
-
-    Gmail API rate limits:
-    - 250 quota units per second per user
-    - messages.list = 5 units
-    - messages.get  = 5 units
-    So 10 emails = ~55 units. Well within limits.
+    No pre-ingestion. No ChromaDB.
     """
 
     def _get_client(self):
@@ -40,22 +25,16 @@ class LiveGmailService:
             raise ValueError("Not authenticated. Visit /auth/login")
         return build("gmail", "v1", credentials=credentials)
 
+    # ------------------------------------------------------------
+    # MAIN SEARCH ENTRY
+    # ------------------------------------------------------------
+
     def search_and_fetch(
         self,
         queries: list[str],
         max_per_query: int = 10,
     ) -> list[dict]:
-        """
-        Run multiple Gmail queries and return deduplicated emails.
 
-        Why multiple queries?
-        A single query might miss relevant emails.
-        Running "from:amazon.com" AND "subject:order" separately
-        gives broader coverage than either alone.
-
-        Deduplication ensures the same email isn't returned twice
-        even if it matches multiple queries.
-        """
         seen_ids = set()
         all_emails = []
 
@@ -72,16 +51,29 @@ class LiveGmailService:
 
         logger.info(f"Total unique emails fetched: {len(all_emails)}")
         return all_emails
-    
-    def _search_one_query(
-        self,
-        query: str,
-        max_results: int
-    ) -> list[dict]:
-        """Search Gmail and fetch all emails concurrently."""
-        service = self._get_client()
 
-        # Step 1: Get message IDs (one API call)
+    # ------------------------------------------------------------
+    # UPDATED FUNCTION (YOUR REQUEST)
+    # ------------------------------------------------------------
+
+    def _search_one_query(self, query: str, max_results: int) -> list[dict]:
+        """Search Gmail and fetch all emails concurrently."""
+
+        # Pre-refresh token ONCE in main thread before spawning workers
+        # This prevents every thread from hitting 401 and refreshing independently
+        credentials = gmail_auth_service.get_valid_credentials()
+        if not credentials:
+            raise ValueError("Not authenticated")
+
+        # Force refresh if expired so threads get a valid token
+        if credentials.expired and credentials.refresh_token:
+            from google.auth.transport.requests import Request
+            credentials.refresh(Request())
+            gmail_auth_service._save_tokens(credentials)
+            logger.info("Pre-refreshed token before concurrent fetch")
+
+        # Step 1: List message IDs
+        service = build("gmail", "v1", credentials=credentials)
         result = service.users().messages().list(
             userId="me",
             q=query,
@@ -90,39 +82,49 @@ class LiveGmailService:
 
         messages = result.get("messages", [])
         if not messages:
-            logger.info(f"No results for query: '{query}'")
             return []
 
         logger.info(f"Query '{query}' → {len(messages)} messages")
 
-        # Step 2: Fetch all emails CONCURRENTLY
-        # ThreadPoolExecutor runs multiple fetches in parallel
-        # 5 workers = 5 simultaneous Gmail API calls
-        # 10 emails that took 8s sequentially → ~2s concurrently
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        # Step 2: Fetch concurrently with max 3 workers
+        with ThreadPoolExecutor(max_workers=3) as executor:
             futures = [
-                executor.submit(self._fetch_email, service, msg["id"])
+                executor.submit(self._fetch_email_with_own_client, msg["id"])
                 for msg in messages
             ]
-            emails = [
-                f.result() for f in futures
-                if f.result() is not None
-            ]
+            emails = []
+            for future in futures:
+                try:
+                    result = future.result(timeout=8)
+                    if result:
+                        emails.append(result)
+                except Exception as e:
+                    logger.warning(f"Thread fetch failed: {e}")
+                    continue
 
         return emails
         
+    # ------------------------------------------------------------
+    # THREAD-SAFE FETCH (NEW CLIENT PER THREAD)
+    # ------------------------------------------------------------
 
-    def _fetch_email(
-        self,
-        service,
-        email_id: str
-    ) -> Optional[dict]:
+    def _fetch_email_with_own_client(self, email_id: str) -> Optional[dict]:
         """
-        Fetch one complete email and parse it into a clean dict.
-        Returns None if fetch fails — we skip and continue.
+        Fetch one email using a fresh Gmail client per thread.
+
+        Important:
+        - googleapiclient is NOT thread-safe
+        - Each thread must create its own client
         """
+
         try:
-            message = service.users().messages().get(
+            credentials = gmail_auth_service.get_valid_credentials()
+            if not credentials:
+                return None
+
+            thread_service = build("gmail", "v1", credentials=credentials)
+
+            message = thread_service.users().messages().get(
                 userId="me",
                 id=email_id,
                 format="full",
@@ -134,15 +136,16 @@ class LiveGmailService:
             logger.warning(f"Failed to fetch email {email_id}: {e}")
             return None
 
+    # ------------------------------------------------------------
+    # PARSING
+    # ------------------------------------------------------------
+
     def _parse_email(self, message: dict) -> dict:
-        """Parse raw Gmail API message into clean dict."""
         payload = message.get("payload", {})
         headers = payload.get("headers", [])
 
-        # Convert header list to dict for easy lookup
         header_map = {h["name"]: h["value"] for h in headers}
 
-        # Extract body
         body = self._extract_body(payload)
 
         return {
@@ -152,12 +155,15 @@ class LiveGmailService:
             "sender": header_map.get("From", "unknown"),
             "date": header_map.get("Date", "unknown"),
             "snippet": message.get("snippet", ""),
-            "body": body[:3000],  # cap at 3000 chars per email
+            "body": body[:3000],
             "labels": message.get("labelIds", []),
         }
 
+    # ------------------------------------------------------------
+    # BODY EXTRACTION
+    # ------------------------------------------------------------
+
     def _extract_body(self, payload: dict) -> str:
-        """Extract plain text body from email payload."""
         mime_type = payload.get("mimeType", "")
 
         if mime_type == "text/plain":
@@ -170,24 +176,26 @@ class LiveGmailService:
         return payload.get("body", {}).get("data", "")
 
     def _extract_from_parts(self, parts: list) -> str:
-        """Recursively extract text from multipart email."""
         for part in parts:
             mime = part.get("mimeType", "")
+
             if mime == "text/plain":
                 data = part.get("body", {}).get("data", "")
                 text = self._decode_base64(data)
                 if text:
                     return text
+
             elif "multipart" in mime:
                 result = self._extract_from_parts(part.get("parts", []))
                 if result:
                     return result
+
         return ""
 
     def _decode_base64(self, data: str) -> str:
-        """Decode base64url encoded email body."""
         if not data:
             return ""
+
         try:
             padded = data + "=" * (4 - len(data) % 4)
             return base64.urlsafe_b64decode(padded).decode(
@@ -197,4 +205,5 @@ class LiveGmailService:
             return ""
 
 
+# Singleton instance
 live_gmail_service = LiveGmailService()
