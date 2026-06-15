@@ -4,8 +4,9 @@ import os
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 
@@ -32,9 +33,9 @@ logger = logging.getLogger(__name__)
 # Lifespan
 # ------------------------------------------------------------------
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+
     logger.info(f"Starting {settings.app_name}")
     logger.info(f"Environment: {settings.app_env}")
     logger.info(f"Debug Mode: {settings.debug}")
@@ -73,10 +74,6 @@ async def lifespan(app: FastAPI):
 
 
 # ------------------------------------------------------------------
-# FastAPI Factory
-# ------------------------------------------------------------------
-
-# ------------------------------------------------------------------
 # App Factory
 # ------------------------------------------------------------------
 
@@ -103,6 +100,22 @@ def create_app() -> FastAPI:
     )
 
     # --------------------------------------------------------------
+    # Global Exception Handler
+    # --------------------------------------------------------------
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+
+        logger.error(f"Unhandled error: {exc}", exc_info=True)
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": "An unexpected error occurred. Please try again."
+            },
+        )
+
+    # --------------------------------------------------------------
     # Routers
     # --------------------------------------------------------------
 
@@ -126,9 +139,6 @@ def create_app() -> FastAPI:
 
     return app
 
-# ------------------------------------------------------------------
-# App Instance
-# ------------------------------------------------------------------
 
 # ------------------------------------------------------------------
 # App Instance
@@ -136,14 +146,10 @@ def create_app() -> FastAPI:
 
 app = create_app()
 
-# ------------------------------------------------------------------
-# Health Check
-# ------------------------------------------------------------------
 
 # ------------------------------------------------------------------
 # Health Check
 # ------------------------------------------------------------------
-
 
 @app.get("/health", tags=["system"])
 async def health_check():
@@ -154,14 +160,10 @@ async def health_check():
         "version": "0.1.0",
     }
 
-# ------------------------------------------------------------------
-# Root
-# ------------------------------------------------------------------
 
 # ------------------------------------------------------------------
 # Root
 # ------------------------------------------------------------------
-
 
 @app.get("/", tags=["system"])
 async def root():

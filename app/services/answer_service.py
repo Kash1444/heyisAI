@@ -53,37 +53,47 @@ class AnswerService:
             "has_results": True,
             "email_count": len(emails),
         }
-
-    def generate_from_memory(self, question, memory_emails, conversation_history):
+    ###
+    def generate_from_memory(
+        self,
+        question: str,
+        memory_emails: list[dict],
+        conversation_history: str,
+    ) -> dict:
+        logger.info("[AnswerService] Generating from memory (no Gmail search)")
 
         if not memory_emails:
             return {
-                "answer": "I don't have previous context. Please ask a new question.",
+                "answer": "I don't have context from a previous search. Could you re-ask your original question?",
                 "sources": [],
                 "has_results": False,
                 "email_count": 0,
             }
 
+        # Build context ONLY from memory emails
         context = self._build_email_context(memory_emails)
 
         prompt = f"""{SYSTEM_PROMPT}
 
-CONVERSATION HISTORY:
-{conversation_history}
+    CONVERSATION SO FAR:
+    {conversation_history}
 
-EMAILS:
-{context}
+    THE EMAILS FROM THE PREVIOUS SEARCH (use ONLY these):
+    {context}
 
-Question: {question}
+    CRITICAL INSTRUCTION: Answer ONLY using the emails listed above.
+    Do NOT reference any other emails. Do NOT make up information.
+    The user is asking a follow-up about specifically these emails.
 
-Answer:"""
+    FOLLOW-UP QUESTION: {question}
+
+    ANSWER:"""
 
         try:
             answer = llm_service.generate(prompt)
-
         except Exception as e:
             logger.error(f"Memory generation failed: {e}")
-            answer = "Error generating response. Please try again."
+            answer = "I encountered an error. Please try again."
 
         return {
             "answer": answer,
@@ -92,6 +102,7 @@ Answer:"""
             "email_count": len(memory_emails),
             "from_memory": True,
         }
+        ###
 
     def _no_results_response(self, question, conversation_history=""):
 
@@ -131,41 +142,42 @@ Keep response short and helpful.
             "email_count": 0,
         }
 
-    def _build_email_context(self, emails):
+    def _build_email_context(self, emails: list[dict]) -> str:
         parts = []
-
         for email in emails:
-            body = " ".join(email.get("body", "").split())[:2000]
+            body = " ".join(email.get("body", "").split())
+            # Reduce from 2000 to 500 chars per email
+            body_preview = body[:500]
 
             parts.append(
-                f"""--- Email ---
-Sender: {email.get('sender', 'unknown')}
-Subject: {email.get('subject', '(no subject)')}
-Date: {email.get('date', 'unknown')}
-Snippet: {email.get('snippet', '')}
-Body: {body}
-"""
+                f"--- Email ---\n"
+                f"Subject : {email.get('subject', '')}\n"
+                f"From    : {email.get('sender', '')}\n"
+                f"Date    : {email.get('date', '')}\n"
+                f"Content : {body_preview}\n"
             )
-
         return "\n".join(parts)
 
-    def _build_prompt(self, question, email_context, conversation_history=""):
-
-        history_section = (
-            f"CONVERSATION HISTORY:\n{conversation_history}\n\n"
-            if conversation_history
-            else ""
-        )
+    def _build_prompt(self, question: str, context: str, conversation_history: str = "") -> str:
+        history_section = ""
+        if conversation_history:
+            history_section = f"CONVERSATION HISTORY:\n{conversation_history}\n\n"
 
         return f"""{SYSTEM_PROMPT}
 
-{history_section}
-EMAILS:
-{email_context}
+    {history_section}EMAILS FROM GMAIL:
+    {context}
 
-QUESTION: {question}
+    IMPORTANT INSTRUCTIONS:
+    - If the user asked for "last" or "latest" and the emails found are more than 1 year old,
+    mention this clearly: "The most recent order I found is from [date], which may not be your latest."
+    - Suggest the user check if orders might be under a different email or sender
+    - For Indian services: Amazon India uses amazon.in, Flipkart uses flipkart.com,
+    Swiggy uses swiggy.in, Zomato uses zomato.com
 
-ANSWER:"""
+    USER QUESTION: {question}
+
+    ANSWER:"""
 
     def _format_sources(self, emails):
         return [

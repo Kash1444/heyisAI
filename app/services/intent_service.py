@@ -22,23 +22,39 @@ Return ONLY a valid JSON object with these fields:
 {{
   "gmail_queries": ["query1", "query2"],
   "needs_summary": true/false,
-  "time_range": "last_week" | "last_month" | "last_year" | "all_time" | null,
+  "time_range": null,
   "topic": "short topic description",
-  "max_results": 10
+  "max_results": 5
 }}
 
 Rules for gmail_queries:
-- Generate 1-3 Gmail search queries that would find relevant emails
-- Use Gmail search operators: from:, subject:, after:, before:, has:attachment
-- Order from most specific to most broad
+- Generate 1-2 queries maximum
+- Gmail returns results newest-first automatically
+- Do NOT add time filters — let Gmail handle recency naturally
+- Search by subject keywords, not sender domains
+- Use broad keyword searches that match email subjects
 
 Examples:
-"last Amazon order" → ["from:amazon.com", "subject:order from:amazon"]
-"internship emails" → ["subject:internship", "subject:(intern OR internship OR placement)"]
-"NASA email" → ["from:nasa.gov", "subject:NASA"]
+"last amazon order" →
+  ["subject:(amazon order) OR subject:(order confirmation)",
+   "amazon.in order"]
 
-Return ONLY the JSON. No explanation.
-"""
+"last flipkart order" →
+  ["subject:(flipkart order) OR subject:(order confirmation flipkart)"]
+
+"last swiggy order" →
+  ["subject:(swiggy) order delivered"]
+
+"emails about flight booking" →
+  ["subject:(flight booking OR ticket confirmation OR boarding pass)"]
+
+"internship emails" →
+  ["subject:(intern OR internship OR placement)"]
+
+"emails from NASA" →
+  ["from:nasa.gov", "subject:NASA"]
+
+Return ONLY the JSON. No explanation."""
 
         try:
             text = llm_service.generate(prompt)
@@ -67,7 +83,7 @@ Return ONLY the JSON. No explanation.
                 "needs_summary": False,
                 "time_range": None,
                 "topic": question[:30],
-                "max_results": 10,
+                "max_results": 5,
             }
 
 

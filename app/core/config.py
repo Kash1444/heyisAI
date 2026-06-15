@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     # ── groq ───────────────────────────────────────────────
     groq_api_key: Optional[str] = Field(default=None)
 
+    # ── OpenRouter ─────────────────────────────────────────
+    openrouter_api_key: Optional[str] = Field(default=None)
+
     # ── Database ───────────────────────────────────────────
     database_url: str = Field(
         default="sqlite:///./disqry.db"

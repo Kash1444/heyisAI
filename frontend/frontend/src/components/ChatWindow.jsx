@@ -24,81 +24,75 @@ export default function ChatWindow({ onLogout }) {
   }, [messages]);
 
   const sendMessage = async (text) => {
-    const question = text || input.trim();
+      const question = text || input.trim();
+      if (!question || loading) return;
 
-    if (!question || loading) return;
+      setInput("");
+      setMessages(prev => [...prev, { role: "user", content: question }]);
+      setLoading(true);
 
-    setInput("");
+      try {
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: question,
+            session_id: sessionId.current,
+          }),
+        });
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "user",
-        content: question,
-      },
-    ]);
+        // Handle non-200 responses explicitly — this was the missing piece
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          const detail = errorData.detail || "";
 
-    setLoading(true);
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: res.status === 504
+              ? "That query took too long. Try a more specific question — mention a sender name, company, or date range."
+              : res.status === 401
+                ? "Your Gmail session expired. Please logout and login again."
+                : `Something went wrong (${res.status}). Please try again.`,
+            sources: [],
+            has_results: false,
+            is_error: true,
+          }]);
+          return;  // ← this was missing — was falling through to data.answer
+        }
 
-    try {
-      const res = await fetch("/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: question,
-          session_id: sessionId.current,
-        }),
-      });
+        const data = await res.json();
 
-      const data = await res.json();
-
-      // ── MODEL EXHAUSTED HANDLING ─────────────────────────────
-      if (data.error_type === "model_exhausted") {
-        setMessages((prev) => [
-          ...prev,
-          {
+        if (data.error_type === "model_exhausted") {
+          setMessages(prev => [...prev, {
             role: "assistant",
             content: data.answer,
             is_error: true,
             error_type: "model_exhausted",
             sources: [],
             has_results: false,
-          },
-        ]);
-        return;
-      }
+          }]);
+          return;
+        }
 
-      // ── NORMAL RESPONSE ──────────────────────────────────────
-      setMessages((prev) => [
-        ...prev,
-        {
+        setMessages(prev => [...prev, {
           role: "assistant",
           content: data.answer,
           sources: data.sources || [],
           has_results: data.has_results,
           email_count: data.email_count,
-        },
-      ]);
+        }]);
 
-    } catch (err) {
-      console.error(err);
-
-      setMessages((prev) => [
-        ...prev,
-        {
+      } catch (err) {
+        setMessages(prev => [...prev, {
           role: "assistant",
-          content:
-            "Connection error. Make sure the backend is running.",
+          content: "Connection error. Make sure the backend is running on port 8000.",
           sources: [],
           has_results: false,
           is_error: true,
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+        }]);
+      } finally {
+        setLoading(false);  // ← always runs, clears the spinner
+      }
   };
 
   const handleKeyDown = (e) => {
