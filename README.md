@@ -54,6 +54,10 @@ Response + source references
 7. Start chatting:
    # POST http://localhost:8000/chat/conversation
 
+# Demo video
+https://github.com/Kash1444/gmail-chatbot/blob/0dc8e0c4c9bbffb2bd402450c9251f4e229a9cdb/Gmail-Chatbot-%20demo-video.mp4
+
+
 ## API Endpoints
 
 | Method | Endpoint | Description |
