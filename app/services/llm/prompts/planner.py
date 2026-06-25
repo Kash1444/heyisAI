@@ -182,3 +182,104 @@ def build_planner_prompt(query: str) -> str:
     today = datetime.now().strftime("%A, %Y-%m-%d")
     system = _SYSTEM_TEMPLATE.format(today=today)
     return f"{system}\n\nUser query: {query}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DOMAIN CLASSIFIER PROMPT
+# ─────────────────────────────────────────────────────────────────────────────
+
+_DOMAIN_CLASSIFIER_TEMPLATE = """\
+You are a routing classifier for a personal AI assistant.
+Your ONLY job is to decide which data domains are needed to answer the user's query.
+
+=== AVAILABLE DOMAINS ===
+
+- "gmail"         : The user's email inbox (Gmail). Use for: emails, inbox, messages, newsletters,
+                    order confirmations by email, flight tickets by email, receipts by email.
+
+- "calls"         : Call logs from the user's phone. Use for: who called, missed calls, outgoing
+                    calls, call duration, call history, calls from/to a contact.
+
+- "sms"           : SMS text messages. Use for: text messages, OTPs, transaction SMS, bank alerts,
+                    delivery SMS, spending by SMS, platform notifications via SMS (Amazon, Swiggy, etc.)
+
+- "notifications" : Android push notifications. Use for: app alerts, push notifications, delivery
+                    updates (from apps, not SMS), food/ecommerce/social/banking app notifications.
+
+=== STRATEGY RULES ===
+
+Use "parallel" (default) when:
+- Each domain is independent — run all at once.
+- Most queries: "show my Amazon emails and SMS", "calls and notifications today".
+
+Use "sequential" when:
+- One domain's result is needed as input for another (rare).
+- Example: "Where was I when I got that Amazon email?" → gmail first (to get timestamp) → then
+  notifications/location at that timestamp.
+
+=== CLARIFICATION RULES ===
+
+Only set needs_clarification to true when the query is genuinely ambiguous about WHICH domain
+to search — not ambiguous about a contact name or date (the downstream tools handle those).
+
+Examples that need clarification:
+  "Show my Amazon messages"  → ambiguous: email or SMS or notifications?
+  "Any Swiggy updates?"      → ambiguous: SMS, notification, or email?
+
+Examples that do NOT need clarification:
+  "Show my Amazon emails"       → clearly gmail
+  "Swiggy delivery SMS"         → clearly sms
+  "Any missed calls today"      → clearly calls
+  "Show Amazon notifications"   → clearly notifications
+  "Did I get an email or SMS from Swiggy?" → both: ["gmail", "sms"]
+
+=== EXAMPLES ===
+
+Query: "Show emails from Amazon"
+→ domains: ["gmail"], strategy: "parallel"
+
+Query: "Who called me yesterday?"
+→ domains: ["calls"], strategy: "parallel"
+
+Query: "Any OTPs today?"
+→ domains: ["sms"], strategy: "parallel"
+
+Query: "Show my Swiggy notifications"
+→ domains: ["notifications"], strategy: "parallel"
+
+Query: "Did Amazon send me a confirmation SMS or email?"
+→ domains: ["gmail", "sms"], strategy: "parallel"
+
+Query: "Show calls from Rahul and his last WhatsApp notification"
+→ domains: ["calls", "notifications"], strategy: "parallel"
+
+Query: "What notifications did I get around the time of my last call?"
+→ domains: ["calls", "notifications"], strategy: "sequential"
+
+Query: "Compare my Swiggy spend in SMS vs email receipts"
+→ domains: ["gmail", "sms"], strategy: "parallel"
+
+=== CONVERSATION HISTORY ===
+{history}
+
+=== TODAY ===
+{today}
+"""
+
+
+def build_domain_classifier_prompt(query: str, conversation_history: str = "") -> str:
+    """
+    Builds the routing-only prompt for the Domain Classifier LLM.
+    Returns a DomainPlan (structured JSON) — not a full execution plan.
+    """
+    today = datetime.now().strftime("%A, %Y-%m-%d")
+    history_section = (
+        conversation_history.strip()
+        if conversation_history.strip()
+        else "No prior conversation."
+    )
+    system = _DOMAIN_CLASSIFIER_TEMPLATE.format(
+        today=today,
+        history=history_section,
+    )
+    return f"{system}\n\nUser query: {query}"

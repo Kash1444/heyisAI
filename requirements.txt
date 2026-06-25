@@ -16,7 +16,7 @@ google-api-python-client==2.128.0  # Gmail API client
 google-generativeai==0.7.2   # Gemini API
 
 # Embeddings + Vector DB
-chromadb==0.5.0              # Local vector database (perfect for phase 1)
+# chromadb==0.5.0              # Local vector database (perfect for phase 1)
 sentence-transformers==3.0.0 # Local embedding model (free, no API needed)
 
 # Database

@@ -149,3 +149,21 @@ class ConversationResponse(BaseModel):
     session_id: str
     tools_used: list[ToolUsed] = []
     history: list[ConversationTurn] = []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# UNIFIED ORCHESTRATOR SCHEMAS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class UnifiedChatAnswer(BaseModel):
+    """
+    Complete response from the Unified Orchestrator.
+    Extends ChatAnswer with multi-domain metadata.
+    """
+    answer:           str
+    sources:          list[SourceEmail] = []  # Gmail email citations
+    has_results:      bool
+    email_count:      int               = 0
+    domains_used:     list[str]         = []  # e.g. ["gmail", "sms"]
+    partial_failures: list[str]         = []  # domains that errored
+    needs_clarification: bool           = False

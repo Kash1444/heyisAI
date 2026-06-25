@@ -16,7 +16,7 @@ __pycache__/
 *.pyd
 *.egg-info/
 
-venv/
+mainenv/
 .venv/
 
 # ==========================

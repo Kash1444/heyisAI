@@ -3,11 +3,13 @@
 import logging
 import asyncio
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.services.llm_service import llm_service
 from app.services.orchestrator import orchestrator
-from app.schemas.chat import ChatMessage, ChatAnswer, SourceEmail
+from app.services.unified_orchestrator import unified_orchestrator
+from app.schemas.chat import ChatMessage, ChatAnswer, SourceEmail, UnifiedChatAnswer
+from app.dependencies.database import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -111,3 +113,82 @@ async def reset_models():
         "message": "Model status reset successfully",
         "status": llm_service.get_status(),
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# UNIFIED ORCHESTRATOR ENDPOINT
+# Handles Gmail + Calls + SMS + Notifications in a single request
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post("/unified", response_model=UnifiedChatAnswer)
+async def unified_chat(
+    request: ChatMessage,
+    db=Depends(get_db),
+):
+    """
+    Unified AI chat endpoint.
+
+    Routes the user's query to the correct data domains automatically:
+      - Gmail     → emails
+      - Calls     → call logs
+      - SMS       → text messages / OTPs / spend
+      - Notifications → push notification history
+
+    Multi-domain queries (e.g. "show my Amazon emails AND delivery SMS")
+    are handled in a single request — both pipelines run in parallel.
+
+    On partial failure (e.g. Gmail auth expired), results from healthy
+    domains are still returned with a note about what failed.
+    """
+    logger.info(
+        f"[/chat/unified] session={request.session_id} | '{request.message}'"
+    )
+
+    try:
+        result = await asyncio.wait_for(
+            unified_orchestrator.run(
+                query=request.message,
+                session_id=request.session_id,
+                db=db,
+            ),
+            timeout=45.0,  # slightly longer than /chat since it may run 2 pipelines
+        )
+
+        # Map sources (may be SourceEmail-like dicts from Gmail)
+        raw_sources = result.get("sources", [])
+        sources = []
+        for s in raw_sources:
+            try:
+                if isinstance(s, dict):
+                    sources.append(SourceEmail(**s))
+                elif hasattr(s, "email_id"):
+                    sources.append(s)
+            except Exception:
+                pass  # skip malformed sources
+
+        return UnifiedChatAnswer(
+            answer=result["answer"],
+            sources=sources,
+            has_results=result.get("has_results", False),
+            email_count=len([s for s in raw_sources]),
+            domains_used=result.get("domains_used", []),
+            partial_failures=result.get("partial_failures", []),
+            needs_clarification=result.get("needs_clarification", False),
+        )
+
+    except asyncio.TimeoutError:
+        logger.error("[/chat/unified] Request timed out after 45 seconds")
+        raise HTTPException(
+            status_code=504,
+            detail="Request took too long. Try a more specific query.",
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    except Exception as e:
+        logger.error(f"[/chat/unified] Error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Unified chat service error",
+        )

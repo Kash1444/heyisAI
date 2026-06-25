@@ -2,9 +2,10 @@
 
 from app.services.llm.factory import get_structured_llm
 from app.services.llm.schemas.call_query import CallQueryResult
+from app.services.llm.schemas.domain_plan import DomainPlan
 from app.services.llm.schemas.execution_plan import ExecutionPlan
-from app.services.llm.prompts.planner import build_planner_prompt
-from app.services.llm.prompts.response_generator import build_response_prompt
+from app.services.llm.prompts.planner import build_planner_prompt, build_domain_classifier_prompt
+from app.services.llm.prompts.response_generator import build_response_prompt, build_unified_response_prompt
 from app.services.llm.prompts.clarification_resolver import build_clarification_resolver_prompt
 from app.services.llm.prompts.call_query import (
     build_call_query_prompt,
@@ -17,6 +18,16 @@ llm = get_structured_llm()
 def plan_query(query: str) -> ExecutionPlan:
     prompt = build_planner_prompt(query)
     return llm.generate(prompt, schema=ExecutionPlan, temperature=0.01)
+
+
+def classify_domains(query: str, conversation_history: str = "") -> DomainPlan:
+    """
+    Fast routing call: decide which data domains (gmail/calls/sms/notifications)
+    are needed to answer the query and whether to run them in parallel or sequentially.
+    """
+    prompt = build_domain_classifier_prompt(query, conversation_history)
+    return llm.generate(prompt, schema=DomainPlan, temperature=0.0)
+
 
 
 def generate_response(query: str, context: str) -> str:

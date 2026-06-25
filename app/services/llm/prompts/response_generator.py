@@ -66,3 +66,78 @@ User question:
 Retrieved data:
 {context}
 """
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# UNIFIED RESPONSE PROMPT
+# Handles answers spanning multiple domains (gmail + calls + sms + notifications)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_unified_response_prompt(
+    query: str,
+    domain_contexts: list[tuple[str, str]],
+    conversation_history: str = "",
+    partial_errors: list[str] | None = None,
+) -> str:
+    """
+    Build a response prompt that merges context from multiple data domains.
+
+    Parameters
+    ----------
+    query              : The original user question.
+    domain_contexts    : List of (domain_label, context_string) tuples.
+                         e.g. [("Gmail", "..."), ("SMS", "...")]
+    conversation_history: Recent conversation for follow-up context.
+    partial_errors     : List of domain names that failed (for partial-failure note).
+    """
+    # Build the combined context block
+    context_blocks = []
+    for label, ctx in domain_contexts:
+        if ctx.strip():
+            context_blocks.append(f"=== {label.upper()} DATA ===\n{ctx.strip()}")
+
+    combined_context = "\n\n".join(context_blocks) if context_blocks else "No data was retrieved."
+
+    # Build the optional history section
+    history_section = ""
+    if conversation_history and conversation_history.strip():
+        history_section = f"\nRecent conversation:\n{conversation_history.strip()}\n"
+
+    # Build optional partial-failure note
+    failure_note = ""
+    if partial_errors:
+        failed = ", ".join(partial_errors)
+        failure_note = (
+            f"\nNote: The following data sources could not be reached: {failed}. "
+            f"Answer only from the data that was retrieved successfully.\n"
+        )
+
+    return f"""\
+You are a helpful AI assistant replying inside a mobile chat app.
+
+Answer the user's question using ONLY the retrieved data shown below.
+The data may come from multiple sources (emails, calls, SMS, notifications) — \
+synthesise them into a single, coherent answer.
+
+Rules:
+- Keep answers proportional to the question.
+- Prefer plain sentences over heavy formatting.
+- Never use #, ##, or markdown headings.
+- Use bullets only for 3+ short items. Keep bullets short.
+- Prefer natural indentation over "|" separators.
+- Use **bold** sparingly for the single most important detail.
+- Do not use tables, nested lists, or code blocks.
+- Leave only a single blank line between sections.
+- Avoid filler phrases and introductions.
+- If a source has no data, say so briefly and move on.
+- Never invent or assume information not present in the data.
+- When data comes from multiple sources, weave them together naturally.
+  Do NOT repeat section headers from the raw data in your answer.
+{failure_note}{history_section}
+User question:
+{query}
+
+Retrieved data:
+{combined_context}
+"""
+
