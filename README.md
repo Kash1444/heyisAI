@@ -3,6 +3,8 @@
 An AI-powered email assistant that retrieves and reasons over Gmail 
 using semantic search, RAG, and an AI agent with tool calling.
 
+![gmail chatbot](https://github.com/Kash1444/heyisAI/blob/8138244d9080ddc1ce1a91081e65431bb3e79d5b/chatbot%20interface%20image.png)
+
 ## Architecture
 ```text
 User Question
